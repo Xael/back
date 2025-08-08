@@ -1,4 +1,4 @@
-# Backend (FastAPI) — CRB Serviços (v3)
+# Backend (FastAPI) — CRB Serviços (v4)
 
 Pronto para EasyPanel (Docker), com:
 - FastAPI + Uvicorn

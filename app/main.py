@@ -1,6 +1,6 @@
-import os
+import os, json
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, Body
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, Body, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, Response
@@ -26,7 +26,7 @@ from .crud import (
 UPLOAD_DIR = "/app/data/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app = FastAPI(title="CRB Serviços API (v3)")
+app = FastAPI(title="CRB Serviços API (v4)")
 
 # CORS
 origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -72,21 +72,53 @@ def root():
 def favicon():
     return Response(status_code=204)
 
-# Auth (accept JSON or FormData)
+@app.get("/debug/ping", include_in_schema=False)
+def debug_ping():
+    return {"pong": True}
+
+# Bulletproof Auth: accept JSON, form-data, x-www-form-urlencoded, or query params.
 @app.post("/api/auth/login", response_model=Token)
-def login(
-    payload: Optional[LoginRequest] = Body(default=None),
-    form_email: Optional[str] = Form(default=None),
-    form_password: Optional[str] = Form(default=None),
+async def login_any(
+    request: Request,
     session: Session = Depends(get_session),
+    q_email: Optional[str] = Query(default=None),
+    q_password: Optional[str] = Query(default=None),
 ):
-    email = (payload.email if payload else form_email)
-    password = (payload.password if payload else form_password)
+    email = None
+    password = None
+
+    # 1) Try JSON body
+    try:
+        if request.headers.get("content-type","").startswith("application/json"):
+            data = await request.json()
+            if isinstance(data, dict):
+                email = data.get("email") or data.get("username") or data.get("user")
+                password = data.get("password") or data.get("pass")
+    except Exception:
+        pass
+
+    # 2) Try form (multipart or x-www-form-urlencoded)
+    if email is None or password is None:
+        try:
+            form = await request.form()
+            if form:
+                email = email or form.get("email") or form.get("username") or form.get("user")
+                password = password or form.get("password") or form.get("pass")
+        except Exception:
+            pass
+
+    # 3) Try query params (last resort)
+    if email is None or password is None:
+        email = email or q_email
+        password = password or q_password
+
     if not email or not password:
         raise HTTPException(status_code=422, detail="email and password are required")
-    user = get_user_by_email(session, email)
-    if not user or not verify_password(password, user.password_hash):
+
+    user = get_user_by_email(session, str(email))
+    if not user or not verify_password(str(password), user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+
     token = create_access_token({"sub": str(user.id), "role": user.role})
     return {"access_token": token}
 
