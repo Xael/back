@@ -7,7 +7,7 @@ class Token(BaseModel):
     token_type: str = "bearer"
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    email: str  # relaxado para aceitar qualquer string
     password: str
 
 class UserCreate(BaseModel):

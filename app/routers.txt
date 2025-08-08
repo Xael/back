@@ -1,4 +1,5 @@
 /healthz
+/docs
 /api/auth/login
 /api/users (GET, POST) [ADMIN]
 /api/locations (GET [auth], POST [ADMIN])

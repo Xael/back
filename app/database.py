@@ -1,5 +1,5 @@
-from sqlmodel import SQLModel, create_engine, Session
 import os
+from sqlmodel import SQLModel, create_engine, Session
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:////app/data/app.db")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}

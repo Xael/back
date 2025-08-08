@@ -1,43 +1,31 @@
-# Backend (FastAPI) — CRB Serviços (MVP)
+# Backend (FastAPI) — CRB Serviços (v3)
 
-Backend mínimo para rodar no VPS (EasyPanel) com:
+Pronto para EasyPanel (Docker), com:
 - FastAPI + Uvicorn
-- JWT Auth (login)
-- CRUD básico: Users (admin), Locations, Records
-- Upload de fotos para volume persistente (`/app/data/uploads`), servidas em `/uploads/...`
+- JWT Auth
+- CRUD: Users (ADMIN), Locations, Records
+- Upload de fotos em `/app/data/uploads` (servidas via `/uploads/...`)
 - CORS configurável
-- Banco: SQLite por padrão (simples para começar). Pode trocar para Postgres via `DATABASE_URL`.
+- Banco SQLite por padrão (simples); Postgres via `DATABASE_URL`
+- **Login aceita JSON _ou_ FormData** e e-mail como string (sem validar formato)
 
-## Endpoints principais
+## Rotas
 - `GET /healthz`
-- `POST /api/auth/login` → JWT
-- `GET /api/users` (ADMIN) — lista
-- `POST /api/users` (ADMIN) — cria funcionário/admin
-- `GET /api/locations` — lista
-- `POST /api/locations` — cria
-- `GET /api/records` — lista (filtros simples)
-- `POST /api/records` — cria
-- `POST /api/records/{id}/photos` — upload (múltiplos arquivos)
+- `POST /api/auth/login`
+- `GET/POST /api/users` (ADMIN)
+- `GET/POST /api/locations`
+- `GET/POST /api/records`
+- `POST /api/records/{id}/photos` (multipart)
 
 ## Variáveis de ambiente
-- `SECRET_KEY` (obrigatória) — chave aleatória (32+ chars)
-- `ACCESS_TOKEN_EXPIRE_MINUTES` (opcional, padrão 60)
-- `DATABASE_URL` (opcional) — ex.: `sqlite:////app/data/app.db` (padrão) ou `postgresql+psycopg://user:pass@host:5432/db`
-- `ALLOWED_ORIGINS` — lista separada por vírgula (ex.: `https://seu-front.vercel.app,https://app.seu-dominio.com`)
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD` — se definidos, cria/atualiza admin no startup
+- `SECRET_KEY` (obrigatória)
+- `ALLOWED_ORIGINS` (ex.: `https://seu-front.vercel.app`)
+- `DATABASE_URL` (ex.: `sqlite:////app/data/app.db`)
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD` (cria/atualiza admin no startup)
 
 ## Docker (EasyPanel)
-1. Crie um app Git apontando para este repositório e selecione o `Dockerfile`.
-2. Volumes:
-   - Monte um volume persistente em `/app/data` (para DB SQLite e uploads).
-3. Porta de exposição: **8000**
-4. Domínio: `api.seu-dominio.com` (habilite HTTPS no EasyPanel).
-5. Variáveis de ambiente: conforme acima.
-6. Healthcheck/Status: `GET /healthz`.
+- Porta: **8000**
+- Volume: montar em **/app/data**
+- Domínio: apontar host para a app (proxy HTTP → porta 8000), SSL Let’s Encrypt
+- Healthcheck: `/healthz`
 
-## Rodando localmente (opcional)
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```

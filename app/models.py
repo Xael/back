@@ -1,10 +1,10 @@
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime
-from sqlmodel import SQLModel, Field, Relationship
+from sqlmodel import SQLModel, Field
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    email: str = Field(index=True, unique=True)
+    email: str
     name: str
     role: str = Field(default="OPERATOR")  # ADMIN, OPERATOR, FISCAL
     password_hash: str
@@ -22,7 +22,7 @@ class Location(SQLModel, table=True):
 class Record(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     operator_id: int = Field(foreign_key="user.id")
-    service_type: str  # sweeping, mowing, etc.
+    service_type: str
     location_id: Optional[int] = Field(default=None, foreign_key="location.id")
     location_name: Optional[str] = None
     location_city: Optional[str] = None

@@ -1,8 +1,9 @@
 import os
 from typing import List, Optional
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, Request, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse, Response
 from sqlmodel import Session
 
 from .database import init_db, get_session
@@ -25,7 +26,7 @@ from .crud import (
 UPLOAD_DIR = "/app/data/uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-app = FastAPI(title="CRB Serviços API (MVP)")
+app = FastAPI(title="CRB Serviços API (v3)")
 
 # CORS
 origins = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "").split(",") if o.strip()]
@@ -38,7 +39,7 @@ if origins:
         allow_headers=["*"],
     )
 
-# Static serving for uploads
+# Static uploads
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 @app.on_event("startup")
@@ -63,11 +64,28 @@ def on_startup():
 def healthz():
     return {"ok": True}
 
-# Auth
+@app.get("/", include_in_schema=False)
+def root():
+    return RedirectResponse(url="/docs")
+
+@app.get("/favicon.ico", include_in_schema=False)
+def favicon():
+    return Response(status_code=204)
+
+# Auth (accept JSON or FormData)
 @app.post("/api/auth/login", response_model=Token)
-def login(payload: LoginRequest, session: Session = Depends(get_session)):
-    user = get_user_by_email(session, payload.email)
-    if not user or not verify_password(payload.password, user.password_hash):
+def login(
+    payload: Optional[LoginRequest] = Body(default=None),
+    form_email: Optional[str] = Form(default=None),
+    form_password: Optional[str] = Form(default=None),
+    session: Session = Depends(get_session),
+):
+    email = (payload.email if payload else form_email)
+    password = (payload.password if payload else form_password)
+    if not email or not password:
+        raise HTTPException(status_code=422, detail="email and password are required")
+    user = get_user_by_email(session, email)
+    if not user or not verify_password(password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     token = create_access_token({"sub": str(user.id), "role": user.role})
     return {"access_token": token}
@@ -106,22 +124,19 @@ def records_create(payload: RecordCreate, session: Session = Depends(get_session
 @app.post("/api/records/{record_id}/photos", response_model=List[PhotoRead], dependencies=[Depends(get_current_user)])
 async def upload_photos(
     record_id: int,
-    request: Request,
     phase: str = Form(...),
     files: List[UploadFile] = File(...),
     session: Session = Depends(get_session)
 ):
-    # basic checks
     rec = session.get(Record, record_id)
     if not rec:
         raise HTTPException(status_code=404, detail="Record not found")
     saved = []
+    import uuid, pathlib
     for f in files:
         contents = await f.read()
-        if len(contents) > 10 * 1024 * 1024:  # 10 MB limit (ajuste se necessário)
+        if len(contents) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail=f"{f.filename} too large")
-        # sanitize filename (simple)
-        import uuid, pathlib
         ext = pathlib.Path(f.filename).suffix.lower()
         if ext not in [".jpg", ".jpeg", ".png", ".webp"]:
             raise HTTPException(status_code=400, detail="Invalid image format")
@@ -129,7 +144,6 @@ async def upload_photos(
         path = os.path.join(UPLOAD_DIR, name)
         with open(path, "wb") as out:
             out.write(contents)
-        # Optional: read dimensions
         try:
             from PIL import Image
             with Image.open(path) as im:
