@@ -1,0 +1,65 @@
+from typing import Optional, List
+from datetime import datetime
+from pydantic import BaseModel, EmailStr
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    name: str
+    password: str
+    role: str = "OPERATOR"
+
+class UserRead(BaseModel):
+    id: int
+    email: EmailStr
+    name: str
+    role: str
+    class Config:
+        from_attributes = True
+
+class LocationCreate(BaseModel):
+    city: str
+    name: str
+    area: Optional[float] = None
+    lat: Optional[float] = None
+    lng: Optional[float] = None
+
+class LocationRead(LocationCreate):
+    id: int
+    class Config:
+        from_attributes = True
+
+class RecordCreate(BaseModel):
+    operator_id: int
+    service_type: str
+    location_id: Optional[int] = None
+    location_name: Optional[str] = None
+    location_city: Optional[str] = None
+    location_area: Optional[float] = None
+    gps_used: bool = True
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+
+class RecordRead(RecordCreate):
+    id: int
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class PhotoRead(BaseModel):
+    id: int
+    record_id: int
+    phase: str
+    url_path: str
+    width: Optional[int]
+    height: Optional[int]
+    bytes: Optional[int]
+    class Config:
+        from_attributes = True

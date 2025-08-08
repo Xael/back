@@ -1,0 +1,7 @@
+/healthz
+/api/auth/login
+/api/users (GET, POST) [ADMIN]
+/api/locations (GET [auth], POST [ADMIN])
+/api/records (GET [auth], POST [auth])
+/api/records/{id}/photos (POST [auth], multipart)
+/uploads/*  (static files)
